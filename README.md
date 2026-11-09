@@ -44,6 +44,12 @@ Regras do padrão:
 - **Presenter (`use*Presenter.ts`)** concentra o estado e a lógica da tela e expõe para a View um objeto com dados de exibição + ações.
 - **Model** não conhece React. O repositório é uma interface — trocar o `localStorage` por uma API no futuro não exige mudar o presenter.
 
+## Convenções de nomes
+
+- **Todo identificador no código é em inglês**: funções, variáveis, constantes, parâmetros, tipos, interfaces, componentes, hooks, nomes de arquivos e pastas — inclusive nos testes (ex.: `existingAppointment`, não `agendamentoExistente`; `openSchedule()`, não `abrirAgenda()`).
+- **Fica em português** apenas o que a usuária lê: textos da interface, mensagens de erro exibidas na tela e descrições dos testes (`it('não deixa escolher um horário que já passou')`). Comentários podem ser em português.
+- Estilo: `camelCase` para funções e variáveis, `PascalCase` para tipos e componentes, `UPPER_SNAKE_CASE` para constantes globais (ex.: `SERVICES`), hooks começando com `use`.
+
 ## Testes
 
 Os testes ficam em pastas `__tests__` ao lado do código e têm descrições em linguagem simples
