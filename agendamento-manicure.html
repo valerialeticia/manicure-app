@@ -1,0 +1,597 @@
+<title>Studio Laca Agendamento</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: barra lateral (desktop) | fluxo de agendamento em 4 passos | resumo fixo. No celular: uma coluna, barra de total fixa e navegação inferior. */
+:root {
+  --bg: #FBF6F8;
+  --surface: #FFFFFF;
+  --ink: #2A1621;
+  --muted: #7A6470;
+  --line: #EBDDE4;
+  --accent: #A3174A;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F8E3EB;
+  --ok: #2F7A55;
+  --taken: #CBBBC3;
+  --shadow: 0 1px 2px rgba(42,22,33,.06), 0 8px 24px rgba(42,22,33,.06);
+  --f-display: "Instrument Serif", "Georgia", serif;
+  --f-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r: 14px;
+  --nav-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #160D12; --surface: #21151B; --ink: #F5E9EE; --muted: #B39CA8; --line: #3A2832;
+    --accent: #E85C90; --accent-ink: #1A0910; --accent-soft: #3A1A28; --ok: #6BC79A; --taken: #4A3842;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #160D12; --surface: #21151B; --ink: #F5E9EE; --muted: #B39CA8; --line: #3A2832;
+  --accent: #E85C90; --accent-ink: #1A0910; --accent-soft: #3A1A28; --ok: #6BC79A; --taken: #4A3842;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- Estrutura ---------- */
+.app {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr) 340px;
+  min-height: 100vh;
+}
+.sidebar {
+  position: sticky; top: 0; height: 100vh;
+  border-right: 1px solid var(--line);
+  padding: 28px 20px;
+  display: flex; flex-direction: column; gap: 28px;
+  background: var(--surface);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 10px 10px 16px 16px;
+  background: linear-gradient(160deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000));
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.35);
+}
+.brand-name { font-family: var(--f-display); font-size: 26px; line-height: 1; }
+.brand-name em { color: var(--accent); }
+
+.nav { display: flex; flex-direction: column; gap: 4px; }
+.nav a {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  color: var(--muted); text-decoration: none; font-weight: 500;
+}
+.nav a:hover { background: var(--accent-soft); color: var(--ink); }
+.nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.nav svg { width: 20px; height: 20px; flex: none; }
+
+.next-appt {
+  margin-top: auto;
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 14px; display: grid; gap: 4px; font-size: 13px;
+}
+.eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+
+.main {
+  padding-block: 32px 48px;
+  padding-left: max(32px, env(safe-area-inset-left, 0px));
+  padding-right: max(32px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 36px;
+  min-width: 0;
+}
+.topbar { display: none; }
+.page-head { display: grid; gap: 6px; }
+.page-head h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 4.5vw, 48px); line-height: 1.05; }
+.page-head h1 em { color: var(--accent); }
+.page-head p { margin: 0; color: var(--muted); max-width: 56ch; }
+
+.step { display: grid; gap: 14px; min-width: 0; }
+.step-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.step-num {
+  font-family: var(--f-display); font-size: 22px; color: var(--accent);
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--accent);
+  display: grid; place-items: center; line-height: 1; flex: none; align-self: center;
+}
+.step-head h2 { font-size: 18px; font-weight: 600; }
+.step-head .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+/* ---------- Serviços ---------- */
+.services { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.service {
+  text-align: left; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r);
+  padding: 16px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.service:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.service[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+.service .name { font-weight: 600; }
+.service .desc { grid-column: 1 / -1; color: var(--muted); font-size: 13px; }
+.service .meta { grid-column: 1 / -1; display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; }
+.service .price { font-weight: 700; }
+.check {
+  width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line);
+  display: grid; place-items: center; transition: all .15s;
+}
+.check svg { width: 12px; height: 12px; opacity: 0; }
+[aria-pressed="true"] .check { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+[aria-pressed="true"] .check svg { opacity: 1; }
+
+/* ---------- Profissionais ---------- */
+.pros { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.pro {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  padding: 16px 12px; display: grid; justify-items: center; gap: 6px; text-align: center;
+}
+.pro[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: grid; place-items: center; font-weight: 700; font-size: 16px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.pro .pname { font-weight: 600; font-size: 14px; }
+.pro .spec { color: var(--muted); font-size: 12px; }
+.pro .rating { font-size: 12px; font-weight: 600; }
+
+/* ---------- Data e horário ---------- */
+.dates {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px;
+  scroll-snap-type: x mandatory; scrollbar-width: thin;
+}
+.date {
+  flex: none; width: 64px; scroll-snap-align: start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 0; display: grid; justify-items: center; gap: 2px;
+}
+.date .dow { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.date .day { font-size: 20px; font-weight: 700; }
+.date .mon { font-size: 11px; color: var(--muted); }
+.date[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.date[aria-pressed="true"] .dow, .date[aria-pressed="true"] .mon { color: inherit; opacity: .85; }
+.date:disabled { opacity: .45; cursor: not-allowed; }
+.date:disabled .day { text-decoration: line-through; }
+
+.period { display: grid; gap: 8px; }
+.period-label { font-size: 13px; color: var(--muted); font-weight: 500; }
+.times { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.time {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 0; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.time:hover:not(:disabled) { border-color: var(--accent); }
+.time[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.time:disabled { color: var(--taken); text-decoration: line-through; cursor: not-allowed; background: transparent; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; border: 1px solid var(--line); background: var(--surface); }
+.legend i.sel { background: var(--accent); border-color: var(--accent); }
+.legend i.off { background: var(--taken); border-color: var(--taken); }
+
+/* ---------- Cores ---------- */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; }
+.swatch {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 8px; display: grid; justify-items: center; gap: 6px; font-size: 12px; text-align: center;
+}
+.swatch .bottle {
+  width: 26px; height: 34px; border-radius: 6px 6px 10px 10px; position: relative;
+  box-shadow: inset 0 -6px 0 rgba(0,0,0,.12), inset 3px 0 0 rgba(255,255,255,.35);
+  border: 1px solid rgba(0,0,0,.08);
+}
+.swatch .bottle::before {
+  content: ""; position: absolute; left: 50%; top: -12px; width: 10px; height: 12px;
+  transform: translateX(-50%); border-radius: 3px 3px 0 0; background: var(--ink); opacity: .85;
+}
+.swatch .code { color: var(--muted); font-variant-numeric: tabular-nums; }
+.swatch[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* ---------- Resumo ---------- */
+.summary-col {
+  border-left: 1px solid var(--line);
+  padding: 32px 24px; background: var(--surface);
+}
+.summary { position: sticky; top: 32px; display: grid; gap: 18px; }
+.summary h2 { font-family: var(--f-display); font-weight: 400; font-size: 30px; }
+.sum-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.sum-list li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.sum-list li span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sum-empty { color: var(--muted); font-size: 14px; }
+.sum-block { display: grid; gap: 10px; padding-top: 16px; border-top: 1px dashed var(--line); }
+.row { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.row svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.row .dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0,0,0,.1); flex: none; }
+.total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 16px; border-top: 1px solid var(--line); }
+.total strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+.btn {
+  border: 0; border-radius: 12px; padding: 14px 18px; font-weight: 700;
+  background: var(--accent); color: var(--accent-ink); width: 100%;
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.fine { font-size: 12px; color: var(--muted); margin: 0; }
+
+/* barra móvel e navegação inferior */
+.mobile-bar, .tabbar { display: none; }
+
+/* ---------- Confirmação ---------- */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  display: grid; place-items: center;
+  padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
+}
+.modal {
+  background: var(--surface); border-radius: 20px; padding: 28px; width: min(420px, 100%);
+  display: grid; gap: 14px; box-shadow: var(--shadow); text-align: center;
+}
+.modal .ok-icon {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto;
+  background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok);
+  display: grid; place-items: center;
+}
+.modal h3 { font-family: var(--f-display); font-weight: 400; font-size: 30px; }
+.modal p { margin: 0; color: var(--muted); }
+.modal .actions { display: grid; gap: 8px; margin-top: 6px; }
+
+/* ---------- Tablet ---------- */
+@media (max-width: 1100px) {
+  .app { grid-template-columns: minmax(0, 1fr) 320px; }
+  .sidebar { display: none; }
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .topbar .links { display: flex; gap: 4px; }
+  .topbar .links a { padding: 8px 12px; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 500; font-size: 14px; }
+  .topbar .links a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+  .pros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---------- Celular ---------- */
+@media (max-width: 760px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .main {
+    padding-block: 20px calc(var(--nav-h) + 96px + env(safe-area-inset-bottom, 0px));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    gap: 30px;
+  }
+  .topbar .links { display: none; }
+  .step-head .hint { margin-left: 0; width: 100%; }
+  .services { grid-template-columns: minmax(0, 1fr); }
+  .pros {
+    display: flex; overflow-x: auto; gap: 10px; padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+  }
+  .pro { flex: none; width: 128px; scroll-snap-align: start; }
+  .times { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .swatches { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .swatch .name-c { font-size: 11px; }
+  .summary-col { display: none; }
+
+  .mobile-bar {
+    display: flex; align-items: center; gap: 12px;
+    position: fixed; left: 0; right: 0; z-index: 20;
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+    padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
+    background: var(--surface); border-top: 1px solid var(--line);
+    box-shadow: 0 -8px 24px rgba(0,0,0,.06);
+  }
+  .mobile-bar .mb-info { min-width: 0; flex: 1; display: grid; }
+  .mobile-bar .mb-info small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mobile-bar .mb-info strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .mobile-bar .btn { width: auto; padding: 12px 20px; flex: none; }
+
+  .tabbar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 21;
+    height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: var(--surface); border-top: 1px solid var(--line);
+  }
+  .tabbar a {
+    display: grid; place-items: center; align-content: center; gap: 2px;
+    color: var(--muted); text-decoration: none; font-size: 11px; font-weight: 500;
+  }
+  .tabbar a[aria-current="page"] { color: var(--accent); }
+  .tabbar svg { width: 22px; height: 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17 19 7"/></symbol>
+</svg>
+
+<div class="app">
+  <!-- Barra lateral (desktop) -->
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-name">Studio <em>Laca</em></div></div>
+    <nav class="nav" aria-label="Principal">
+      <a href="#"><svg><use href="#i-home"/></svg>Início</a>
+      <a href="#" aria-current="page"><svg><use href="#i-cal"/></svg>Agendar</a>
+      <a href="#"><svg><use href="#i-list"/></svg>Meus horários</a>
+      <a href="#"><svg><use href="#i-user"/></svg>Perfil</a>
+    </nav>
+    <div class="next-appt">
+      <span class="eyebrow">Último atendimento</span>
+      <strong>Manicure + Pedicure</strong>
+      <span style="color:var(--muted)">18 out · com Renata (exemplo)</span>
+    </div>
+  </aside>
+
+  <!-- Fluxo principal -->
+  <main class="main">
+    <div class="topbar">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"></div><div class="brand-name">Studio <em>Laca</em></div></div>
+      <nav class="links" aria-label="Principal">
+        <a href="#">Início</a><a href="#" aria-current="page">Agendar</a><a href="#">Meus horários</a><a href="#">Perfil</a>
+      </nav>
+    </div>
+
+    <header class="page-head">
+      <span class="eyebrow">Novo agendamento</span>
+      <h1>Reserve seu horário <em>em poucos toques</em></h1>
+      <p>Escolha os serviços, a profissional e o melhor dia. Você recebe a confirmação na hora.</p>
+    </header>
+
+    <section class="step" aria-labelledby="s1">
+      <div class="step-head"><span class="step-num">1</span><h2 id="s1">Serviços</h2><span class="hint">Pode escolher mais de um</span></div>
+      <div class="services" id="services"></div>
+    </section>
+
+    <section class="step" aria-labelledby="s2">
+      <div class="step-head"><span class="step-num">2</span><h2 id="s2">Profissional</h2></div>
+      <div class="pros" id="pros"></div>
+    </section>
+
+    <section class="step" aria-labelledby="s3">
+      <div class="step-head"><span class="step-num">3</span><h2 id="s3">Data e horário</h2><span class="hint" id="monthLabel"></span></div>
+      <div class="dates" id="dates"></div>
+      <div class="period"><span class="period-label">Manhã</span><div class="times" id="t-am"></div></div>
+      <div class="period"><span class="period-label">Tarde</span><div class="times" id="t-pm"></div></div>
+      <div class="legend"><span><i></i>Disponível</span><span><i class="sel"></i>Selecionado</span><span><i class="off"></i>Ocupado</span></div>
+    </section>
+
+    <section class="step" aria-labelledby="s4">
+      <div class="step-head"><span class="step-num">4</span><h2 id="s4">Cor do esmalte</h2><span class="hint">Opcional, dá para decidir no salão</span></div>
+      <div class="swatches" id="swatches"></div>
+    </section>
+  </main>
+
+  <!-- Resumo (desktop/tablet) -->
+  <aside class="summary-col" aria-label="Resumo do agendamento">
+    <div class="summary" id="summary"></div>
+  </aside>
+</div>
+
+<!-- Barra móvel -->
+<div class="mobile-bar">
+  <div class="mb-info"><small id="mb-when">Escolha data e horário</small><strong id="mb-total">R$ 0</strong></div>
+  <button class="btn" id="mb-confirm" type="button">Confirmar</button>
+</div>
+<nav class="tabbar" aria-label="Navegação">
+  <a href="#"><svg><use href="#i-home"/></svg>Início</a>
+  <a href="#" aria-current="page"><svg><use href="#i-cal"/></svg>Agendar</a>
+  <a href="#"><svg><use href="#i-list"/></svg>Horários</a>
+  <a href="#"><svg><use href="#i-user"/></svg>Perfil</a>
+</nav>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ok-title">
+    <div class="ok-icon"><svg width="26" height="26"><use href="#i-check"/></svg></div>
+    <h3 id="ok-title">Horário reservado</h3>
+    <p id="ok-text"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="ok-close">Ver meus horários</button>
+      <button class="btn btn-ghost" type="button" id="ok-new">Fazer outro agendamento</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SERVICES = [
+  { id: "mao",   name: "Manicure tradicional", desc: "Cutilagem, lixamento e esmaltação comum", dur: 40,  price: 35 },
+  { id: "pe",    name: "Pedicure tradicional", desc: "Cutilagem, lixamento e esmaltação comum", dur: 50,  price: 40 },
+  { id: "gel",   name: "Esmaltação em gel",    desc: "Brilho e duração de até 3 semanas",       dur: 60,  price: 75 },
+  { id: "fibra", name: "Alongamento em fibra", desc: "Formato e comprimento sob medida",        dur: 120, price: 180 },
+  { id: "blind", name: "Blindagem",            desc: "Camada protetora para unhas frágeis",     dur: 50,  price: 60 },
+  { id: "spa",   name: "Spa dos pés",          desc: "Esfoliação, hidratação e massagem",       dur: 40,  price: 55 },
+];
+const PROS = [
+  { id: "camila", name: "Camila Rocha",  spec: "Gel e alongamento", rating: "4,9" },
+  { id: "julia",  name: "Júlia Martins", spec: "Nail art",          rating: "4,8" },
+  { id: "renata", name: "Renata Alves",  spec: "Pedicure e spa",    rating: "5,0" },
+  { id: "any",    name: "Sem preferência", spec: "Primeira livre",  rating: null },
+];
+const COLORS = [
+  { id: "cereja", name: "Cereja",      hex: "#B0142E", code: "Nº 112" },
+  { id: "nude",   name: "Nude rosado", hex: "#E3B7A8", code: "Nº 034" },
+  { id: "bordo",  name: "Bordô",       hex: "#5E1224", code: "Nº 118" },
+  { id: "lilas",  name: "Lilás névoa", hex: "#B9A6D6", code: "Nº 207" },
+  { id: "coral",  name: "Coral",       hex: "#F0705A", code: "Nº 145" },
+  { id: "franc",  name: "Francesinha", hex: "linear-gradient(#F6E7E4 70%, #FFFFFF 70%)", code: "Nº 001" },
+  { id: "onix",   name: "Preto ônix",  hex: "#18151A", code: "Nº 300" },
+  { id: "gelo",   name: "Branco gelo", hex: "#F4F2F0", code: "Nº 002" },
+];
+const AM = ["08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30"];
+const PM = ["13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30","18:00"];
+const DOW = ["dom","seg","ter","qua","qui","sex","sáb"];
+const MON = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const brl = n => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0 });
+
+// próximos 14 dias; domingo fechado
+const today = new Date(); today.setHours(0,0,0,0);
+const DAYS = Array.from({ length: 14 }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() + i + 1); return d; });
+const isClosed = d => d.getDay() === 0;
+const keyOf = d => d.toISOString().slice(0,10);
+
+// horários ocupados de exemplo (determinístico por dia + profissional)
+function taken(dayKey, t, pro) {
+  let h = 0; for (const c of dayKey + t + pro) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h % 10 < 3;
+}
+
+const state = {
+  services: new Set(["gel"]),
+  pro: "camila",
+  day: keyOf(DAYS.find(d => !isClosed(d))),
+  time: null,
+  color: "cereja",
+};
+
+function press(el, on) { el.setAttribute("aria-pressed", on ? "true" : "false"); }
+
+function renderServices() {
+  const box = document.getElementById("services"); box.innerHTML = "";
+  SERVICES.forEach(s => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "service";
+    press(b, state.services.has(s.id));
+    b.innerHTML = `<span class="name">${s.name}</span><span class="check"><svg><use href="#i-check"/></svg></span>
+      <span class="desc">${s.desc}</span>
+      <span class="meta"><span style="color:var(--muted)">${s.dur} min</span><span class="price num">${brl(s.price)}</span></span>`;
+    b.onclick = () => { state.services.has(s.id) ? state.services.delete(s.id) : state.services.add(s.id); renderAll(); };
+    box.appendChild(b);
+  });
+}
+
+function initials(n) { return n === "Sem preferência" ? "★" : n.split(" ").map(p => p[0]).join(""); }
+function renderPros() {
+  const box = document.getElementById("pros"); box.innerHTML = "";
+  PROS.forEach(p => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "pro";
+    press(b, state.pro === p.id);
+    b.innerHTML = `<span class="avatar">${initials(p.name)}</span><span class="pname">${p.name}</span>
+      <span class="spec">${p.spec}</span>${p.rating ? `<span class="rating">★ ${p.rating}</span>` : `<span class="rating" style="color:var(--muted)">Mais horários</span>`}`;
+    b.onclick = () => { state.pro = p.id; state.time = null; renderAll(); };
+    box.appendChild(b);
+  });
+}
+
+function renderDates() {
+  const box = document.getElementById("dates"); box.innerHTML = "";
+  DAYS.forEach(d => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "date";
+    const k = keyOf(d); b.disabled = isClosed(d); press(b, state.day === k);
+    b.title = isClosed(d) ? "Fechado aos domingos" : "";
+    b.innerHTML = `<span class="dow">${DOW[d.getDay()]}</span><span class="day num">${d.getDate()}</span><span class="mon">${MON[d.getMonth()]}</span>`;
+    b.onclick = () => { state.day = k; state.time = null; renderAll(); };
+    box.appendChild(b);
+  });
+  const d = DAYS.find(x => keyOf(x) === state.day);
+  document.getElementById("monthLabel").textContent = d ? d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "";
+}
+
+function renderTimes() {
+  [["t-am", AM], ["t-pm", PM]].forEach(([id, list]) => {
+    const box = document.getElementById(id); box.innerHTML = "";
+    list.forEach(t => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "time"; b.textContent = t;
+      const off = state.pro === "any" ? (taken(state.day, t, "camila") && taken(state.day, t, "julia")) : taken(state.day, t, state.pro);
+      b.disabled = off; press(b, state.time === t);
+      if (off) b.setAttribute("aria-label", t + " ocupado");
+      b.onclick = () => { state.time = t; renderAll(); };
+      box.appendChild(b);
+    });
+  });
+}
+
+function renderColors() {
+  const box = document.getElementById("swatches"); box.innerHTML = "";
+  COLORS.forEach(c => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "swatch";
+    press(b, state.color === c.id);
+    b.innerHTML = `<span class="bottle" style="background:${c.hex}"></span><span class="name-c">${c.name}</span><span class="code">${c.code}</span>`;
+    b.onclick = () => { state.color = state.color === c.id ? null : c.id; renderAll(); };
+    box.appendChild(b);
+  });
+}
+
+function totals() {
+  const sel = SERVICES.filter(s => state.services.has(s.id));
+  return { sel, dur: sel.reduce((a, s) => a + s.dur, 0), price: sel.reduce((a, s) => a + s.price, 0) };
+}
+function endTime(t, dur) {
+  const [h, m] = t.split(":").map(Number); const e = h * 60 + m + dur;
+  return String(Math.floor(e / 60)).padStart(2, "0") + ":" + String(e % 60).padStart(2, "0");
+}
+function fmtDur(m) { const h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? String(r).padStart(2,"0") : ""}` : `${r} min`; }
+function dayText() {
+  const d = DAYS.find(x => keyOf(x) === state.day);
+  return d ? d.toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" }) : "";
+}
+const ready = () => state.services.size && state.day && state.time;
+
+function renderSummary() {
+  const { sel, dur, price } = totals();
+  const pro = PROS.find(p => p.id === state.pro);
+  const color = COLORS.find(c => c.id === state.color);
+  const items = sel.length
+    ? `<ul class="sum-list">${sel.map(s => `<li><span>${s.name}</span><span>${brl(s.price)}</span></li>`).join("")}</ul>`
+    : `<p class="sum-empty">Nenhum serviço escolhido ainda.</p>`;
+  const when = state.time
+    ? `${dayText()} · ${state.time}–${endTime(state.time, dur)}`
+    : `${dayText()} · escolha um horário`;
+  document.getElementById("summary").innerHTML = `
+    <div><span class="eyebrow">Resumo</span><h2>Seu horário</h2></div>
+    ${items}
+    <div class="sum-block">
+      <div class="row"><svg><use href="#i-cal"/></svg><span>${when}</span></div>
+      <div class="row"><svg><use href="#i-clock"/></svg><span>Duração estimada: ${dur ? fmtDur(dur) : "—"}</span></div>
+      <div class="row"><svg><use href="#i-user"/></svg><span>${pro.name}</span></div>
+      ${color ? `<div class="row"><span class="dot" style="background:${color.hex}"></span><span>${color.name} · ${color.code}</span></div>` : ""}
+    </div>
+    <div class="total"><span>Total</span><strong>${brl(price)}</strong></div>
+    <button class="btn" type="button" id="confirm" ${ready() ? "" : "disabled"}>Confirmar agendamento</button>
+    <p class="fine">Pagamento no salão. Cancelamento grátis até 4 horas antes.</p>`;
+  document.getElementById("confirm").onclick = confirmBooking;
+
+  document.getElementById("mb-total").textContent = brl(price);
+  document.getElementById("mb-when").textContent = state.time ? `${dayText()} · ${state.time} · ${fmtDur(dur)}` : "Escolha data e horário";
+  document.getElementById("mb-confirm").disabled = !ready();
+}
+
+function confirmBooking() {
+  if (!ready()) return;
+  const { sel, dur } = totals(); const pro = PROS.find(p => p.id === state.pro);
+  document.getElementById("ok-text").textContent =
+    `${sel.map(s => s.name).join(" + ")} em ${dayText()}, das ${state.time} às ${endTime(state.time, dur)}, com ${pro.id === "any" ? "a primeira profissional livre" : pro.name.split(" ")[0]}.`;
+  document.getElementById("overlay").hidden = false;
+  document.getElementById("ok-close").focus();
+}
+document.getElementById("mb-confirm").onclick = confirmBooking;
+document.getElementById("ok-close").onclick = () => { document.getElementById("overlay").hidden = true; };
+document.getElementById("ok-new").onclick = () => {
+  document.getElementById("overlay").hidden = true;
+  state.time = null; renderAll(); window.scrollTo({ top: 0, behavior: "smooth" });
+};
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById("overlay").hidden = true; });
+
+function renderAll() { renderServices(); renderPros(); renderDates(); renderTimes(); renderColors(); renderSummary(); }
+
+// estado inicial de exemplo: primeiro horário livre da manhã a partir das 10h
+(function pickDefault() {
+  const t = AM.slice(4).find(t => !taken(state.day, t, state.pro)) || AM.find(t => !taken(state.day, t, state.pro));
+  state.time = t || null;
+})();
+renderAll();
+</script>
